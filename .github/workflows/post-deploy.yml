@@ -1,0 +1,66 @@
+name: Post-Deploy Health Check
+
+on:
+  repository_dispatch:
+    types:
+      - deploy-uk
+      - deploy-de
+      - deploy-fr
+  workflow_dispatch:
+    inputs:
+      site:
+        description: 'Site to check'
+        required: true
+        default: 'uk'
+        type: choice
+        options:
+          - uk
+          - de
+          - fr
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine site
+        id: site
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            # Extract site from event type: deploy-uk → uk
+            SITE="${{ github.event.action }}"
+            SITE="${SITE#deploy-}"
+            echo "site=$SITE" >> $GITHUB_OUTPUT
+            echo "🔍 Post-deploy check triggered for: $SITE"
+          else
+            echo "site=${{ github.event.inputs.site }}" >> $GITHUB_OUTPUT
+            echo "🔍 Manual check for: ${{ github.event.inputs.site }}"
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Wait for deployment to propagate
+        run: sleep 30
+
+      - name: Run post-deploy health check
+        run: npx tsx src/index.ts --mode=deploy --site=${{ steps.site.outputs.site }}
+        env:
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-deploy-report-${{ steps.site.outputs.site }}-${{ github.run_id }}
+          path: reports/
+          retention-days: 30

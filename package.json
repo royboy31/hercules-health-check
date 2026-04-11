@@ -1,0 +1,19 @@
+{
+  "name": "hercules-health-check",
+  "version": "1.0.0",
+  "description": "Automated health check for Hercules Merchandise sites (UK, DE, FR)",
+  "type": "module",
+  "scripts": {
+    "check": "tsx src/index.ts",
+    "check:uk": "tsx src/index.ts --site=uk",
+    "check:de": "tsx src/index.ts --site=de",
+    "check:fr": "tsx src/index.ts --site=fr",
+    "check:daily": "tsx src/index.ts --mode=daily",
+    "check:deploy": "tsx src/index.ts --mode=deploy"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}
