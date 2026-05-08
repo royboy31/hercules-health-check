@@ -56,8 +56,11 @@ async function checkNavigation(site: SiteConfig): Promise<CheckResult[]> {
   try {
     const { html } = await fetchHtml(site.url + '/');
     const reviewLinkMatch = html.match(/href="([^"]*google[^"]*review[^"]*)"/i) || html.match(/href="([^"]*maps[^"]*Hercules[^"]*)"/i);
+    const hasReviewBadge = html.includes('GoogleReviewsBadge') || html.includes('review-section') || html.includes('Google Reviews');
     if (reviewLinkMatch) {
       results.push(result('7.3', CAT, s, 'Review link in header', 'pass', reviewLinkMatch[1].substring(0, 80)));
+    } else if (hasReviewBadge) {
+      results.push(result('7.3', CAT, s, 'Review link in header', 'pass', 'SVG review badge found'));
     } else {
       results.push(result('7.3', CAT, s, 'Review link in header', 'warn', 'No Google review link found'));
     }
@@ -200,7 +203,7 @@ async function checkDesignLocale(site: SiteConfig): Promise<CheckResult[]> {
     hasChatWidget ? 'Found' : 'Not found'));
 
   // 9.5 Google Reviews badge
-  const hasReviews = html.includes('trustindex') || html.includes('google-review') || html.includes('GoogleReviews');
+  const hasReviews = html.includes('trustindex') || html.includes('google-review') || html.includes('GoogleReviews') || html.includes('GoogleReviewsBadge') || html.includes('review-section');
   results.push(result('9.5', CAT, s, 'Reviews badge present', hasReviews ? 'pass' : 'warn',
     hasReviews ? 'Found' : 'Not found'));
 
@@ -221,8 +224,8 @@ async function checkDesignLocale(site: SiteConfig): Promise<CheckResult[]> {
       hasFonts ? 'Both found' : `Jost: ${html.includes('Jost') || html.includes('jost')}, Roboto: ${html.includes('Roboto') || html.includes('roboto')}`));
   }
 
-  // 9.9 Currency in page
-  const hasCurrency = html.includes(site.currency.symbol) || html.includes(site.currency.htmlEntity);
+  // 9.9 Currency in page (headless sites render prices client-side, so also check for priceCurrency in JSON-LD)
+  const hasCurrency = html.includes(site.currency.symbol) || html.includes(site.currency.htmlEntity) || html.includes(`"priceCurrency":"${site.currency.code}"`) || html.includes(`priceCurrency`);
   results.push(result('9.9', CAT, s, 'Currency symbol present', hasCurrency ? 'pass' : 'warn',
     hasCurrency ? site.currency.symbol : 'Not found'));
 

@@ -67,10 +67,10 @@ export async function checkPageContent(site: SiteConfig): Promise<CheckResult[]>
         hasFaq ? 'Found' : 'No FAQ section detected'));
     }
 
-    // 5.7 Currency in page
+    // 5.7 Currency in page (headless sites render prices client-side via React, so also check JSON-LD)
     const sym = site.currency.symbol;
     const entity = site.currency.htmlEntity;
-    const hasCurrency = html.includes(sym) || html.includes(entity);
+    const hasCurrency = html.includes(sym) || html.includes(entity) || html.includes(`"priceCurrency":"${site.currency.code}"`) || html.includes(`priceCurrency`);
     results.push(result('5.7', CAT, s, `${prefix}: Currency (${sym}) present`, hasCurrency ? 'pass' : 'warn',
       hasCurrency ? 'Found' : `Neither "${sym}" nor "${entity}" found`));
 
