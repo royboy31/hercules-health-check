@@ -8,7 +8,7 @@ export const SITES: Record<string, SiteConfig> = {
     language: 'English',
     locale: 'en_GB',
     url: 'https://hercules-merchandise.co.uk',
-    syncWorkerUrl: 'https://hercules-product-sync-uk.gilles-86d.workers.dev',
+    syncWorkerUrl: 'https://hercules-product-sync-uk-production.gilles-86d.workers.dev',
     currency: { code: 'GBP', symbol: '£', htmlEntity: '&pound;', position: 'left' },
     decimalSeparator: '.',
     thousandSeparator: ',',
