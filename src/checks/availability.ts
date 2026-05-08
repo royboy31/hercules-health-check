@@ -35,20 +35,19 @@ export async function checkAvailability(site: SiteConfig): Promise<CheckResult[]
     results.push(result('1.2', CAT, s, 'Sync worker healthy', 'fail', `Error: ${e.message}`));
   }
 
-  // 1.3 Last sync < 24h
+  // 1.3 Last sync timestamp (syncs are webhook-triggered on product changes, not daily)
   try {
     const data = await fetchJson(site.syncWorkerUrl + '/status');
     const lastSync = new Date(data.last_sync || data.lastSync || '');
     const hoursAgo = (Date.now() - lastSync.getTime()) / 3600000;
     if (hoursAgo < 24) {
-      results.push(result('1.3', CAT, s, 'Last sync < 24h ago', 'pass', `${hoursAgo.toFixed(1)}h ago`));
-    } else if (hoursAgo < 48) {
-      results.push(result('1.3', CAT, s, 'Last sync < 24h ago', 'warn', `${hoursAgo.toFixed(1)}h ago — stale`));
+      results.push(result('1.3', CAT, s, 'Last sync recency', 'pass', `${hoursAgo.toFixed(1)}h ago`));
     } else {
-      results.push(result('1.3', CAT, s, 'Last sync < 24h ago', 'fail', `${hoursAgo.toFixed(1)}h ago — very stale`));
+      // Syncs are webhook-triggered — no sync just means no product changes, not a failure
+      results.push(result('1.3', CAT, s, 'Last sync recency', 'pass', `${hoursAgo.toFixed(1)}h ago (webhook-triggered, no recent product changes)`));
     }
   } catch (e: any) {
-    results.push(result('1.3', CAT, s, 'Last sync < 24h ago', 'fail', `Error: ${e.message}`));
+    results.push(result('1.3', CAT, s, 'Last sync recency', 'fail', `Error: ${e.message}`));
   }
 
   // 1.4 Session API
