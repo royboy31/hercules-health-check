@@ -34,6 +34,7 @@ export interface SiteConfig {
     blogs: string;
   };
   phone: string;
+  hasWhatsApp?: boolean;
   emailDomain: string;
   logoPath: string;
   gtmId: string;

@@ -13,15 +13,41 @@ const COLORS = {
   borderColor: 'FFD0D0D0',
 };
 
-function statusIcon(status: string): string {
-  if (status === 'pass') return '✅ PASS';
-  if (status === 'fail') return '❌ FAIL';
-  return '⚠️ WARN';
+const FRIENDLY_CATEGORIES: Record<string, string> = {
+  '1-Availability': 'Website Status',
+  '2-SyncIntegrity': 'Product Data',
+  '3-AttributeProducts': 'Product Options',
+  '4-AddonProducts': 'Product Add-ons',
+  '5-PageContent': 'Page Content',
+  '6-Categories': 'Product Categories',
+  '7-SiteQuality': 'Site Quality',
+};
+
+function friendlyCategory(cat: string): string {
+  return FRIENDLY_CATEGORIES[cat] || cat;
+}
+
+function statusLabel(status: string): string {
+  if (status === 'pass') return '✅ OK';
+  if (status === 'fail') return '❌ Issue';
+  return '⚠️ Warning';
+}
+
+function generateVerdict(report: Report): string {
+  const siteNames = report.sites.map(s => s.toUpperCase()).join(', ');
+  if (report.failed === 0 && report.warnings <= 5) {
+    return `All ${report.sites.length} websites (${siteNames}) are running smoothly.`;
+  }
+  if (report.failed === 0) {
+    return `All ${report.sites.length} websites are online with ${report.warnings} minor warnings to review.`;
+  }
+  const failSites = [...new Set(report.results.filter(r => r.status === 'fail').map(r => r.site.toUpperCase()))];
+  return `${report.failed} issue${report.failed > 1 ? 's' : ''} found on ${failSites.join(', ')} — please review below.`;
 }
 
 export async function generateExcelReport(report: Report): Promise<string> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'Hercules Health Check Agent';
+  wb.creator = 'Hercules Health Check';
   wb.created = new Date();
 
   // ── Summary Sheet ──
@@ -30,22 +56,25 @@ export async function generateExcelReport(report: Report): Promise<string> {
   });
 
   summarySheet.columns = [
-    { header: '', width: 25 },
-    { header: '', width: 20 },
+    { header: '', width: 28 },
+    { header: '', width: 45 },
   ];
 
-  const summaryData = [
-    ['Hercules Health Check Report', ''],
+  const passRate = ((report.passed / report.totalChecks) * 100).toFixed(1);
+
+  const summaryData: [string, string | number][] = [
+    ['Hercules Daily Website Report', ''],
     ['', ''],
     ['Date', new Date(report.timestamp).toLocaleString('en-GB', { timeZone: 'Europe/Brussels' })],
-    ['Mode', report.mode === 'daily' ? 'Daily (All Sites)' : 'Post-Deploy'],
     ['Sites Checked', report.sites.map(s => s.toUpperCase()).join(', ')],
     ['', ''],
-    ['Total Checks', report.totalChecks],
+    ['Status', generateVerdict(report)],
+    ['', ''],
+    ['Total Items Checked', report.totalChecks],
     ['Passed', report.passed],
-    ['Failed', report.failed],
+    ['Issues', report.failed],
     ['Warnings', report.warnings],
-    ['Pass Rate', `${((report.passed / report.totalChecks) * 100).toFixed(1)}%`],
+    ['Pass Rate', `${passRate}%`],
   ];
 
   for (const [i, row] of summaryData.entries()) {
@@ -54,9 +83,14 @@ export async function generateExcelReport(report: Report): Promise<string> {
       r.font = { bold: true, size: 16, color: { argb: COLORS.headerBg } };
       summarySheet.mergeCells(`A${i + 1}:B${i + 1}`);
     }
-    if (i >= 6) {
+    // Verdict row
+    if (i === 5) {
+      r.getCell(1).font = { bold: true, size: 12 };
+      r.getCell(2).font = { bold: true, size: 12, color: { argb: report.failed > 0 ? COLORS.fail.fg : COLORS.pass.fg } };
+    }
+    if (i >= 7) {
       r.getCell(1).font = { bold: true };
-      if (row[0] === 'Failed' && (row[1] as number) > 0) {
+      if (row[0] === 'Issues' && (row[1] as number) > 0) {
         r.getCell(2).font = { bold: true, color: { argb: COLORS.fail.fg } };
       }
       if (row[0] === 'Passed') {
@@ -69,12 +103,12 @@ export async function generateExcelReport(report: Report): Promise<string> {
   const failures = report.results.filter(r => r.status === 'fail');
   if (failures.length > 0) {
     summarySheet.addRow([]);
-    const failHeader = summarySheet.addRow(['FAILURES (Action Required)', '']);
+    const failHeader = summarySheet.addRow(['Issues That Need Fixing', '']);
     failHeader.font = { bold: true, size: 12, color: { argb: COLORS.fail.fg } };
     summarySheet.mergeCells(`A${failHeader.number}:B${failHeader.number}`);
 
     for (const f of failures) {
-      const r = summarySheet.addRow([`[${f.site.toUpperCase()}] ${f.name}`, f.message]);
+      const r = summarySheet.addRow([`${f.site.toUpperCase()} — ${friendlyCategory(f.category)}`, f.message]);
       r.getCell(1).font = { bold: true };
       r.getCell(2).font = { color: { argb: COLORS.fail.fg } };
     }
@@ -96,14 +130,14 @@ export async function generateExcelReport(report: Report): Promise<string> {
     // Columns
     sheet.columns = [
       { header: '#', width: 5, key: 'num' },
-      { header: 'Status', width: 12, key: 'status' },
-      { header: 'Category', width: 22, key: 'category' },
-      { header: 'Check Name', width: 55, key: 'name' },
+      { header: 'Status', width: 14, key: 'status' },
+      { header: 'Area', width: 22, key: 'category' },
+      { header: 'What We Checked', width: 55, key: 'name' },
       { header: 'Result', width: 50, key: 'message' },
       { header: 'Details', width: 45, key: 'details' },
-      { header: 'Time (ms)', width: 11, key: 'time' },
-      { header: 'Verified', width: 10, key: 'verified' },
-      { header: 'Comments', width: 40, key: 'comments' },
+      { header: 'Speed (ms)', width: 11, key: 'time' },
+      { header: 'Reviewed', width: 10, key: 'verified' },
+      { header: 'Notes', width: 40, key: 'comments' },
     ];
 
     // Style header row
@@ -133,7 +167,7 @@ export async function generateExcelReport(report: Report): Promise<string> {
         const catRow = sheet.addRow({
           num: '',
           status: '',
-          category: currentCategory,
+          category: friendlyCategory(currentCategory),
           name: '',
           message: '',
           details: '',
@@ -151,8 +185,8 @@ export async function generateExcelReport(report: Report): Promise<string> {
       const statusColor = COLORS[check.status];
       const row = sheet.addRow({
         num: rowNum,
-        status: statusIcon(check.status),
-        category: check.category,
+        status: statusLabel(check.status),
+        category: friendlyCategory(check.category),
         check: check.id,
         name: check.name,
         message: check.message,
@@ -179,7 +213,7 @@ export async function generateExcelReport(report: Report): Promise<string> {
       row.getCell(6).font = { size: 9, color: { argb: 'FF757575' } };
       row.getCell(6).alignment = { wrapText: true, vertical: 'middle' };
 
-      // Verified checkbox column — data validation dropdown
+      // Reviewed checkbox column — data validation dropdown
       row.getCell(8).dataValidation = {
         type: 'list',
         allowBlank: true,
@@ -191,7 +225,7 @@ export async function generateExcelReport(report: Report): Promise<string> {
       row.getCell(8).font = { size: 14 };
       row.getCell(8).value = '☐';
 
-      // Comments column — light yellow bg to indicate editable
+      // Notes column — light yellow bg to indicate editable
       row.getCell(9).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFDE7' } };
       row.getCell(9).alignment = { wrapText: true, vertical: 'middle' };
 
@@ -217,7 +251,7 @@ export async function generateExcelReport(report: Report): Promise<string> {
     sheet.autoFilter = { from: 'A1', to: 'I1' };
   }
 
-  // ── All Checks Sheet (flat 642 rows) ──
+  // ── All Checks Sheet (flat view) ──
   const allSheet = wb.addWorksheet('All Checks', {
     properties: { tabColor: { argb: '10C99E' } },
   });
@@ -225,14 +259,14 @@ export async function generateExcelReport(report: Report): Promise<string> {
   allSheet.columns = [
     { header: '#', width: 5, key: 'num' },
     { header: 'Site', width: 6, key: 'site' },
-    { header: 'Status', width: 12, key: 'status' },
-    { header: 'Category', width: 22, key: 'category' },
-    { header: 'Check Name', width: 55, key: 'name' },
+    { header: 'Status', width: 14, key: 'status' },
+    { header: 'Area', width: 22, key: 'category' },
+    { header: 'What We Checked', width: 55, key: 'name' },
     { header: 'Result', width: 50, key: 'message' },
     { header: 'Details', width: 40, key: 'details' },
-    { header: 'Time (ms)', width: 11, key: 'time' },
-    { header: 'Verified', width: 10, key: 'verified' },
-    { header: 'Comments', width: 40, key: 'comments' },
+    { header: 'Speed (ms)', width: 11, key: 'time' },
+    { header: 'Reviewed', width: 10, key: 'verified' },
+    { header: 'Notes', width: 40, key: 'comments' },
   ];
 
   // Header styling
@@ -250,8 +284,8 @@ export async function generateExcelReport(report: Report): Promise<string> {
     const row = allSheet.addRow({
       num: i + 1,
       site: check.site.toUpperCase(),
-      status: statusIcon(check.status),
-      category: check.category,
+      status: statusLabel(check.status),
+      category: friendlyCategory(check.category),
       name: check.name,
       message: check.message,
       details: check.details || '',
@@ -295,7 +329,7 @@ export async function generateExcelReport(report: Report): Promise<string> {
   allSheet.autoFilter = { from: 'A1', to: 'J1' };
 
   // Save
-  const reportsDir = join(process.cwd(), 'reports');
+  const reportsDir = join(import.meta.dirname || '.', '..', '..', 'reports');
   const { mkdirSync } = await import('fs');
   try { mkdirSync(reportsDir, { recursive: true }); } catch {}
   const dateStr = new Date().toISOString().split('T')[0];

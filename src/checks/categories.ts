@@ -3,6 +3,13 @@ import { result, fetchHtml, fetchJson } from './helpers.js';
 
 const CAT = '6-Categories';
 
+/** Count <li class="product"> elements in HTML (works for both Astro and WooCommerce) */
+function countProductCards(html: string): number {
+  // Match <li class="product"> exactly — not compound classes like "related-product-item"
+  const matches = html.match(/<li\s+class="product"/g);
+  return matches ? matches.length : 0;
+}
+
 export async function checkCategories(site: SiteConfig): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
   const s = site.id;
@@ -70,5 +77,111 @@ export async function checkCategories(site: SiteConfig): Promise<CheckResult[]> 
     }
   }
 
+  // 6.9 Cross-check: live page product count vs KV for ALL categories
+  await checkAllCollectionPages(site, results);
+
   return results;
+}
+
+/**
+ * Fetches every category from the sync worker, then for each one:
+ *  - Counts products rendered on the live collection page
+ *  - Counts products returned by KV (/products-by-category)
+ *  - Counts products in the KV index that belong to that category
+ *  - Fails if the page count doesn't match KV
+ */
+async function checkAllCollectionPages(site: SiteConfig, results: CheckResult[]): Promise<void> {
+  const s = site.id;
+
+  // Fetch all categories and the product index from KV
+  let categories: any[];
+  let productIndex: any[];
+  try {
+    categories = await fetchJson(`${site.syncWorkerUrl}/categories`);
+    productIndex = await fetchJson(`${site.syncWorkerUrl}/products`);
+  } catch (e: any) {
+    results.push(result('6.9', CAT, s, 'Collection page cross-check', 'fail', `Cannot fetch categories/products: ${e.message}`));
+    return;
+  }
+
+  if (!Array.isArray(categories) || categories.length === 0) {
+    results.push(result('6.9', CAT, s, 'Collection page cross-check', 'fail', 'No categories returned from KV'));
+    return;
+  }
+
+  // Skip meta/uncategorized categories
+  const skipSlugs = new Set(['uncategorized']);
+
+  let totalChecked = 0;
+  let errors: string[] = [];
+  let drifts: string[] = [];
+
+  for (const cat of categories) {
+    if (skipSlugs.has(cat.slug)) continue;
+
+    // Count products in KV index for this category
+    const kvIndexCount = productIndex.filter((p: any) =>
+      Array.isArray(p.categories) && p.categories.includes(cat.slug)
+    ).length;
+
+    // Skip categories with 0 products in KV index (no page would be built)
+    if (kvIndexCount === 0) continue;
+
+    // Count products from /products-by-category (includes full product data with images)
+    let kvCategoryCount = 0;
+    try {
+      const catProducts = await fetchJson(`${site.syncWorkerUrl}/products-by-category/${cat.slug}`);
+      // Filter same way as Astro: only products with images
+      kvCategoryCount = Array.isArray(catProducts)
+        ? catProducts.filter((p: any) => p.images?.length > 0).length
+        : 0;
+    } catch {
+      kvCategoryCount = -1; // endpoint failed
+    }
+
+    // Fetch the live collection page and count product cards
+    let pageCount = 0;
+    let pageError = '';
+    try {
+      const pageUrl = `${site.url}${site.paths.collections}/${cat.slug}/`;
+      const res = await fetchHtml(pageUrl);
+      if (res.status === 200) {
+        pageCount = countProductCards(res.html);
+      } else {
+        pageError = `HTTP ${res.status}`;
+      }
+    } catch (e: any) {
+      pageError = e.message;
+    }
+
+    totalChecked++;
+
+    // Compare: page should match KV category count (the source Astro uses at build time)
+    const kvCount = kvCategoryCount >= 0 ? kvCategoryCount : kvIndexCount;
+    if (pageError) {
+      errors.push(`${cat.slug}: page error (${pageError}), KV=${kvCount}`);
+    } else if (pageCount === 0 && kvCount > 0) {
+      // Page shows 0 products but KV has products — likely a sync wipe (critical)
+      errors.push(`${cat.slug}: page=0, KV=${kvCount}`);
+    } else if (Math.abs(pageCount - kvCount) > 2) {
+      // Large drift — likely stale build or sync issue
+      errors.push(`${cat.slug}: page=${pageCount}, KV=${kvCount}`);
+    } else if (pageCount !== kvCount) {
+      // Small drift (1-2) — normal between builds, just warn
+      drifts.push(`${cat.slug}: page=${pageCount}, KV=${kvCount}`);
+    }
+  }
+
+  if (errors.length === 0 && drifts.length === 0) {
+    results.push(result('6.9', CAT, s, 'Collection pages match KV',
+      'pass', `All ${totalChecked} collection pages match KV product counts`));
+  } else if (errors.length === 0) {
+    results.push(result('6.9', CAT, s, 'Collection pages match KV',
+      'warn', `${drifts.length}/${totalChecked} minor drifts (<=2)`,
+      drifts.join(' | ')));
+  } else {
+    results.push(result('6.9', CAT, s, 'Collection pages match KV',
+      'fail', `${errors.length}/${totalChecked} mismatches`,
+      [...errors, ...drifts.map(d => `(drift) ${d}`)].join(' | ')));
+  }
 }

@@ -1,5 +1,5 @@
 import type { CheckResult, SiteConfig } from '../types.js';
-import { result, fetchWithTimeout, fetchJson } from './helpers.js';
+import { result, fetchWithTimeout, fetchJson, fetchHtml, IpBlockedError } from './helpers.js';
 import { TIMEOUTS } from '../config/sites.js';
 
 const CAT = '1-Availability';
@@ -35,22 +35,32 @@ export async function checkAvailability(site: SiteConfig): Promise<CheckResult[]
     results.push(result('1.2', CAT, s, 'Sync worker healthy', 'fail', `Error: ${e.message}`));
   }
 
-  // 1.3 Last sync timestamp (syncs are webhook-triggered on product changes, not daily)
+  // 1.3 Last sync < 24h (use most recent of full sync, delta sync, or post sync)
   try {
     const data = await fetchJson(site.syncWorkerUrl + '/status');
-    const lastSync = new Date(data.last_sync || data.lastSync || '');
-    const hoursAgo = (Date.now() - lastSync.getTime()) / 3600000;
-    if (hoursAgo < 24) {
-      results.push(result('1.3', CAT, s, 'Last sync recency', 'pass', `${hoursAgo.toFixed(1)}h ago`));
+    const candidates = [
+      data.last_sync, data.lastSync,
+      data.last_delta_sync, data.lastDeltaSync,
+      data.last_post_sync, data.lastPostSync,
+    ].filter(Boolean).map((d: string) => new Date(d).getTime()).filter((t: number) => !isNaN(t));
+    const lastSyncTime = candidates.length > 0 ? Math.max(...candidates) : 0;
+    if (lastSyncTime === 0) {
+      results.push(result('1.3', CAT, s, 'Last sync < 24h ago', 'fail', 'No sync timestamp found'));
     } else {
-      // Syncs are webhook-triggered — no sync just means no product changes, not a failure
-      results.push(result('1.3', CAT, s, 'Last sync recency', 'pass', `${hoursAgo.toFixed(1)}h ago (webhook-triggered, no recent product changes)`));
+      const hoursAgo = (Date.now() - lastSyncTime) / 3600000;
+      if (hoursAgo < 24) {
+        results.push(result('1.3', CAT, s, 'Last sync < 24h ago', 'pass', `${hoursAgo.toFixed(1)}h ago`));
+      } else if (hoursAgo < 48) {
+        results.push(result('1.3', CAT, s, 'Last sync < 24h ago', 'warn', `${hoursAgo.toFixed(1)}h ago — stale`));
+      } else {
+        results.push(result('1.3', CAT, s, 'Last sync < 24h ago', 'fail', `${hoursAgo.toFixed(1)}h ago — very stale`));
+      }
     }
   } catch (e: any) {
-    results.push(result('1.3', CAT, s, 'Last sync recency', 'fail', `Error: ${e.message}`));
+    results.push(result('1.3', CAT, s, 'Last sync < 24h ago', 'fail', `Error: ${e.message}`));
   }
 
-  // 1.4 Session API
+  // 1.4 Session API (WordPress — may be blocked by firewall)
   try {
     const data = await fetchJson(site.url + '/wp-json/hercules/v1/session');
     const valid = data && typeof data.logged_in !== 'undefined' && data.cart;
@@ -60,43 +70,47 @@ export async function checkAvailability(site: SiteConfig): Promise<CheckResult[]
         : result('1.4', CAT, s, 'Session API responds', 'fail', 'Invalid response structure')
     );
   } catch (e: any) {
-    results.push(result('1.4', CAT, s, 'Session API responds', 'fail', `Error: ${e.message}`));
+    if (e instanceof IpBlockedError) { /* skip — firewall block, not a real issue */ }
+    else results.push(result('1.4', CAT, s, 'Session API responds', 'fail', `Error: ${e.message}`));
   }
 
-  // 1.5 Cart page
+  // 1.5 Cart page (WordPress — may be blocked by firewall)
   try {
-    const res = await fetchWithTimeout(site.url + site.paths.cart, TIMEOUTS.page);
+    const res = await fetchHtml(site.url + site.paths.cart, TIMEOUTS.page);
     results.push(
       res.status === 200
         ? result('1.5', CAT, s, 'Cart page loads', 'pass', `HTTP ${res.status}`)
         : result('1.5', CAT, s, 'Cart page loads', 'fail', `HTTP ${res.status}`)
     );
   } catch (e: any) {
-    results.push(result('1.5', CAT, s, 'Cart page loads', 'fail', `Error: ${e.message}`));
+    if (e instanceof IpBlockedError) { /* skip */ }
+    else results.push(result('1.5', CAT, s, 'Cart page loads', 'fail', `Error: ${e.message}`));
   }
 
-  // 1.6 Checkout page
+  // 1.6 Checkout page (WordPress — may be blocked by firewall)
   try {
-    const res = await fetchWithTimeout(site.url + site.paths.checkout, TIMEOUTS.page);
+    const res = await fetchHtml(site.url + site.paths.checkout, TIMEOUTS.page);
     results.push(
       res.status === 200
         ? result('1.6', CAT, s, 'Checkout page loads', 'pass', `HTTP ${res.status}`)
         : result('1.6', CAT, s, 'Checkout page loads', 'fail', `HTTP ${res.status}`)
     );
   } catch (e: any) {
-    results.push(result('1.6', CAT, s, 'Checkout page loads', 'fail', `Error: ${e.message}`));
+    if (e instanceof IpBlockedError) { /* skip */ }
+    else results.push(result('1.6', CAT, s, 'Checkout page loads', 'fail', `Error: ${e.message}`));
   }
 
-  // 1.7 Quote generator
+  // 1.7 Quote generator (WordPress — may be blocked by firewall)
   try {
-    const res = await fetchWithTimeout(site.url + site.paths.quoteGenerator, TIMEOUTS.page);
+    const res = await fetchHtml(site.url + site.paths.quoteGenerator, TIMEOUTS.page);
     results.push(
       res.status === 200
         ? result('1.7', CAT, s, 'Quote generator loads', 'pass', `HTTP ${res.status}`)
         : result('1.7', CAT, s, 'Quote generator loads', 'fail', `HTTP ${res.status}`)
     );
   } catch (e: any) {
-    results.push(result('1.7', CAT, s, 'Quote generator loads', 'fail', `Error: ${e.message}`));
+    if (e instanceof IpBlockedError) { /* skip */ }
+    else results.push(result('1.7', CAT, s, 'Quote generator loads', 'fail', `Error: ${e.message}`));
   }
 
   return results;

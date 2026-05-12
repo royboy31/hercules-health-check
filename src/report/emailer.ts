@@ -1,5 +1,5 @@
 import type { Report } from '../types.js';
-import { ALERT_EMAILS, BREVO_API_KEY } from '../config/sites.js';
+import { ALERT_EMAILS, DEPLOY_EMAILS, BREVO_API_KEY } from '../config/sites.js';
 import { generateHtmlReport, getSubjectLine } from './generator.js';
 import { readFileSync } from 'fs';
 import { basename } from 'path';
@@ -13,9 +13,11 @@ export async function sendEmailReport(report: Report, excelPath?: string): Promi
   const htmlContent = generateHtmlReport(report);
   const subject = getSubjectLine(report);
 
+  const recipients = report.mode === 'deploy' ? DEPLOY_EMAILS : ALERT_EMAILS;
+
   const payload: any = {
     sender: { name: 'Hercules Health Check', email: 'info@hercules-merchandise.de' },
-    to: ALERT_EMAILS.map(email => ({ email })),
+    to: recipients.map(email => ({ email })),
     subject,
     htmlContent,
   };
@@ -51,7 +53,7 @@ export async function sendEmailReport(report: Report, excelPath?: string): Promi
 
     if (res.ok) {
       const data = await res.json();
-      console.log(`✅ Email sent to: ${ALERT_EMAILS.join(', ')} (messageId: ${data.messageId || 'ok'})`);
+      console.log(`✅ Email sent to: ${recipients.join(', ')} (messageId: ${data.messageId || 'ok'})`);
     } else {
       const err = await res.text();
       console.error(`❌ Email failed (HTTP ${res.status}): ${err}`);

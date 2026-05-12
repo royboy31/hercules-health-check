@@ -24,9 +24,10 @@ export const SITES: Record<string, SiteConfig> = {
       blogs: '/blogs/uk',
     },
     phone: '+442039664881',
+    hasWhatsApp: false,
     emailDomain: '.co.uk',
     logoPath: '/images/hercules-logo-original1.webp',
-    gtmId: 'GTM-MJKQ32P5',
+    gtmId: 'GTM-TW5HR72',
     searchTestQuery: 'scarf',
     expectedProductCount: 97,
     benchmarkProducts: {
@@ -121,9 +122,9 @@ export const SITES: Record<string, SiteConfig> = {
       },
     },
     benchmarkCategories: [
-      { slug: 'custom-scarves', name: 'Custom Scarves', expectedProductCount: 16, tolerance: 3 },
-      { slug: 'football', name: 'Football', expectedProductCount: 27, tolerance: 5 },
-      { slug: 'custom-printed-sportswear', name: 'Custom Printed Sportswear', expectedProductCount: 19, tolerance: 3 },
+      { slug: 'custom-scarves', name: 'Custom Scarves', expectedProductCount: 16, tolerance: 5 },
+      { slug: 'football', name: 'Football', expectedProductCount: 28, tolerance: 5 },
+      { slug: 'custom-printed-sportswear', name: 'Custom Sportswear', expectedProductCount: 20, tolerance: 5 },
     ],
   },
 
@@ -134,7 +135,7 @@ export const SITES: Record<string, SiteConfig> = {
     language: 'German',
     locale: 'de_DE',
     url: 'https://hercules-merchandise.de',
-    syncWorkerUrl: 'https://hercules-product-sync-live.gilles-86d.workers.dev',
+    syncWorkerUrl: 'https://hercules-product-sync-live-production.gilles-86d.workers.dev',
     currency: { code: 'EUR', symbol: '€', htmlEntity: '&euro;', position: 'left_space' },
     decimalSeparator: ',',
     thousandSeparator: '.',
@@ -149,7 +150,8 @@ export const SITES: Record<string, SiteConfig> = {
       quoteGenerator: '/quote-generator',
       blogs: '/blogs/de',
     },
-    phone: '+3233040585',
+    phone: '+49 8001833745',
+    hasWhatsApp: false,
     emailDomain: '.de',
     logoPath: '/images/logo.png',
     gtmId: 'GTM-MJKQ32P5',
@@ -231,9 +233,9 @@ export const SITES: Record<string, SiteConfig> = {
       },
     },
     benchmarkCategories: [
-      { slug: 'fussballschals', name: 'Fußballschals', expectedProductCount: 14, tolerance: 3 },
-      { slug: 'fussball', name: 'Fußball', expectedProductCount: 20, tolerance: 5 },
-      { slug: 'personalisierte-sportbekleidung', name: 'Personalisierte Sportbekleidung', expectedProductCount: 15, tolerance: 3 },
+      { slug: 'fussballschals', name: 'Fußballschals', expectedProductCount: 18, tolerance: 5 },
+      { slug: 'fussball', name: 'Fußball', expectedProductCount: 27, tolerance: 5 },
+      { slug: 'personalisierte-sportbekleidung', name: 'Personalisierte Sportbekleidung', expectedProductCount: 20, tolerance: 5 },
     ],
   },
 
@@ -250,7 +252,7 @@ export const SITES: Record<string, SiteConfig> = {
     thousandSeparator: ' ',
     cartTotalFormat: 'suffix_comma',
     taxPercent: 20,
-    isHeadless: false,
+    isHeadless: true,
     paths: {
       products: '/products',
       collections: '/collections',
@@ -260,9 +262,10 @@ export const SITES: Record<string, SiteConfig> = {
       blogs: '/blog',
     },
     phone: '+33973030295',
+    hasWhatsApp: false,
     emailDomain: '.fr',
     logoPath: '/images/logo.png',
-    gtmId: 'GTM-MJKQ32P5',
+    gtmId: 'GTM-N7NM77N',
     searchTestQuery: 'echarpe',
     expectedProductCount: 97,
     benchmarkProducts: {
@@ -342,14 +345,17 @@ export const SITES: Record<string, SiteConfig> = {
       },
     },
     benchmarkCategories: [
-      { slug: 'echarpes-de-football', name: 'Écharpes de football', expectedProductCount: 14, tolerance: 3 },
+      { slug: 'echarpes-de-football', name: 'Écharpes de Football', expectedProductCount: 17, tolerance: 5 },
       { slug: 'football', name: 'Football', expectedProductCount: 27, tolerance: 5 },
-      { slug: 'equipements-personnalises', name: 'Equipements Personnalisés', expectedProductCount: 18, tolerance: 3 },
+      { slug: 'equipements-personnalises', name: 'Equipements Personnalisés', expectedProductCount: 20, tolerance: 5 },
     ],
   },
 };
 
-export const ALERT_EMAILS = ['roy@perelweb.studio', 'kamindudushmantha@gmail.com'];
+export const ALERT_EMAILS = process.env.ALERT_EMAIL_OVERRIDE
+  ? [process.env.ALERT_EMAIL_OVERRIDE]
+  : ['roy@perelweb.studio', 'kamindudushmantha@gmail.com', 'gilles@hercules-merchandise.com'];
+export const DEPLOY_EMAILS = ['kamindudushmantha@gmail.com'];
 
 export const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 

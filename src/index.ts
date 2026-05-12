@@ -101,7 +101,7 @@ async function main() {
 
   // Generate and save markdown report
   const markdown = generateMarkdownReport(report);
-  const reportsDir = join(process.cwd(), 'reports');
+  const reportsDir = join(import.meta.dirname || '.', '..', 'reports');
   try { mkdirSync(reportsDir, { recursive: true }); } catch {}
   const dateStr = new Date().toISOString().split('T')[0];
   const filename = `health-check-${mode}-${dateStr}.md`;

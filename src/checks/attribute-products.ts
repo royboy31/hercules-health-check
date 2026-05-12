@@ -1,5 +1,5 @@
 import type { CheckResult, SiteConfig, BenchmarkProduct } from '../types.js';
-import { result, fetchJson, parsePrice, pricesDescending } from './helpers.js';
+import { result, fetchProductConfig, parsePrice, pricesDescending } from './helpers.js';
 
 const CAT = '3-AttributeProducts';
 
@@ -10,7 +10,7 @@ async function checkOne(site: SiteConfig, bp: BenchmarkProduct, label: string): 
 
   let config: any;
   try {
-    config = await fetchJson(`${site.syncWorkerUrl}/product-config/${bp.slug}`);
+    config = await fetchProductConfig(site, bp.slug);
   } catch (e: any) {
     results.push(result('3.0', CAT, s, `${prefix}: Config API reachable`, 'fail', `Error: ${e.message}`));
     return results;
