@@ -287,9 +287,9 @@ export const SITES: Record<string, SiteConfig> = {
         greenOption: false,
       },
       attributeComplex: {
-        slug: 'echarpe-hd-deluxe-personnalisee',
+        slug: 'echarpe-de-foot-personnalisee',
         productId: 6721,
-        name: 'Écharpe personnalisée HD Deluxe',
+        name: 'Écharpe de foot personnalisée HD',
         type: 'attribute',
         minimumQuantity: '50',
         expectedAttributeCount: 2,
