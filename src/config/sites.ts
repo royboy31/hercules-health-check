@@ -40,10 +40,10 @@ export const SITES: Record<string, SiteConfig> = {
         expectedAttributeCount: 1,
         expectedAttributes: [
           {
-            slug: 'pa_format',
+            slug: 'pa_format-hd-football-scarf-uk',
             displayType: 'image_selector',
             termCount: 2,
-            termSlugs: ['140-x-18-cm-standard', '160-x-18-cm-extra-long'],
+            termSlugs: ['140-18', '160-18'],
           },
         ],
         expectedVariationCount: 2,
@@ -62,10 +62,10 @@ export const SITES: Record<string, SiteConfig> = {
         expectedAttributeCount: 2,
         expectedAttributes: [
           {
-            slug: 'pa_format',
+            slug: 'pa_format-hd-football-scarf',
             displayType: 'image_selector',
             termCount: 4,
-            termSlugs: ['120-x-15-cm-for-kids', '140-x-18-cm-standard', '160-x-18-cm-extra-long', '180-x-18-cm-ultra-long'],
+            termSlugs: ['120-15', '140-18', '160-18', '180-18'],
           },
           {
             slug: 'pa_colour',
