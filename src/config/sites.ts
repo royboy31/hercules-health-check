@@ -295,7 +295,7 @@ export const SITES: Record<string, SiteConfig> = {
         minimumQuantity: '50',
         expectedAttributeCount: 2,
         expectedAttributes: [
-          { slug: 'pa_format', displayType: 'image_selector', termCount: 4, termSlugs: ['120-x-15-cm-pour-les-enfants', '140-x-18-cm-standard', '160-x-18-cm-extra-long', '180-x-18-cm-ultra-long'] },
+          { slug: 'pa_format-echarpe-hd', displayType: 'image_selector', termCount: 4, termSlugs: ['120-15', '140-18', '160-18', '180-18'] },
           { slug: 'pa_couleur', displayType: 'image_selector', termCount: 2, termSlugs: ['1-a-5-couleurs', '5-couleurs'] },
         ],
         expectedVariationCount: 8,
