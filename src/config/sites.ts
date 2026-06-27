@@ -183,7 +183,7 @@ export const SITES: Record<string, SiteConfig> = {
         minimumQuantity: '50',
         expectedAttributeCount: 2,
         expectedAttributes: [
-          { slug: 'pa_format', displayType: 'image_selector', termCount: 4, termSlugs: ['120-x-15-cm-fur-kinder', '140-x-18-cm-standard', '160-x-18-cm-extra-lang', '180-x-18-cm-ultra-lang'] },
+          { slug: 'pa_format-hd-schal', displayType: 'image_selector', termCount: 4, termSlugs: ['120-15', '140-18', '160-18', '180-18'] },
           { slug: 'pa_farbe', displayType: 'image_selector', termCount: 2, termSlugs: ['1-5-farben', '5-farben'] },
         ],
         expectedVariationCount: 8,
